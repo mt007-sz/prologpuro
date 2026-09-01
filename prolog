@@ -1,48 +1,22 @@
+% =========================================================================
+% DOMÍNIOS (FATOS)
+% =========================================================================
+mochila(amarela). mochila(azul). mochila(branca). mochila(verde). mochila(vermelha).
+nome(denis). nome(joao). nome(lenin). nome(otavio). nome(will).
+mes(agosto). mes(dezembro). mes(janeiro). mes(maio). mes(setembro).
+jogo(tres_ou_mais). jogo(caca_palavras). jogo(cubo_vermelho). jogo(jogo_da_forca). jogo(prob_de_logica).
+materia(biologia). materia(geografia). materia(historia). materia(matematica). materia(portugues).
+suco(laranja). suco(limao). suco(maracuja). suco(morango). suco(uva).
 
-% ---------- Dominios (fatos) ----------
-mochila(amarela).
-mochila(azul).
-mochila(branca).
-mochila(verde).
-mochila(vermelha).
-
-nome(denis).
-nome(joao).
-nome(lenin).
-nome(otavio).
-nome(will).
-
-mes(agosto).
-mes(dezembro).
-mes(janeiro).
-mes(maio).
-mes(setembro).
-
-jogo(tres_ou_mais).
-jogo(caca_palavras).
-jogo(cubo_vermelho).
-jogo(jogo_da_forca).
-jogo(prob_de_logica).
-
-materia(biologia).
-materia(geografia).
-materia(historia).
-materia(matematica).
-materia(portugues).
-
-suco(laranja).
-suco(limao).
-suco(maracuja).
-suco(morango).
-suco(uva).
-
-% ---------- Predicado principal ----------
+% =========================================================================
+% PREDICADO PRINCIPAL (MAIN)
+% =========================================================================
 main :-
     statistics(cputime, T1),
     (   modelo(Solucao),
         nl, write('=== Solucao encontrada ==='), nl,
         imprime_lista(Solucao),
-        fail
+        fail % Forca o backtracking para buscar todas as solucoes
     ;   true
     ),
     statistics(cputime, T2),
@@ -50,8 +24,11 @@ main :-
     nl, write('Tempo de CPU (segundos): '), write(T), nl,
     write('Busca terminada.'), nl.
 
-% ---------- Modelo ----------
+% =========================================================================
+% MODELO (ESTRUTURA E RESTRICOES)
+% =========================================================================
 modelo(Solucao) :-
+    % 1. Estrutura da Solucao (5 meninos com 6 atributos cada)
     Solucao = [
         menino(M1, N1, Mes1, J1, Mat1, S1),
         menino(M2, N2, Mes2, J2, Mat2, S2),
@@ -59,6 +36,8 @@ modelo(Solucao) :-
         menino(M4, N4, Mes4, J4, Mat4, S4),
         menino(M5, N5, Mes5, J5, Mat5, S5)
     ],
+    
+    % Listas para facilitar a manipulacao das posicoes
     Mochilas = [M1, M2, M3, M4, M5],
     Nomes    = [N1, N2, N3, N4, N5],
     Meses    = [Mes1, Mes2, Mes3, Mes4, Mes5],
@@ -66,175 +45,125 @@ modelo(Solucao) :-
     Materias = [Mat1, Mat2, Mat3, Mat4, Mat5],
     Sucos    = [S1, S2, S3, S4, S5],
 
-    % Restricoes fixas imediatas
-    S1 = limao,             % 19
-    S3 = morango,           % 6
-    J3 = jogo_da_forca,     % 23
-    N5 = lenin,             % 21
+    % 2. Geracao de Dominios com alldifferent (Reduz espaco de busca)
+    preenche_lista(Mochilas, mochila), alldifferent(Mochilas),
+    preenche_lista(Nomes, nome),       alldifferent(Nomes),
+    preenche_lista(Meses, mes),        alldifferent(Meses),
+    preenche_lista(Jogos, jogo),       alldifferent(Jogos),
+    preenche_lista(Materias, materia), alldifferent(Materias),
+    preenche_lista(Sucos, suco),       alldifferent(Sucos),
 
-    % Sucos
-    lista_valores(suco, LSucos),
-    valores_distintos(LSucos, Sucos),
+    % -------------------------------------------------------------------------
+    % 3. RESTRICOES (Ordenadas da mais restritiva para a menos restritiva)
+    % -------------------------------------------------------------------------
 
-    % Materias
-    lista_valores(materia, LMaterias),
-    valores_distintos(LMaterias, Materias),
+    % A. Posicoes Fixas Imediatas (Eliminam muitas possibilidades logo de inicio)
+    S1 = limao,                 % 19. Na primeira posicao esta quem gosta de Limao
+    S3 = morango,               % 6. Na terceira posicao esta quem gosta de Morango
+    J3 = jogo_da_forca,         % 23. Na terceira posicao esta o menino que gosta da Forca
+    N5 = lenin,                 % 21. Lenin esta na quinta posicao
 
-    % 12: Biologia -> Morango
-    mesma_posicao(biologia, Materias, morango, Sucos),
-    % 20: Matematica -> Maracuja
-    mesma_posicao(matematica, Materias, maracuja, Sucos),
-    % 14: Uva exatamente a esquerda de Portugues
-    posicao(uva, Sucos, PUva),
-    posicao(portugues, Materias, PPort),
-    PPort is PUva + 1,
+    % B. Equivalencias Diretas (Mesma Posicao)
+    mesma_posicao(biologia, Materias, morango, Sucos),       % 12. Biologia -> Morango
+    mesma_posicao(matematica, Materias, maracuja, Sucos),    % 20. Matematica -> Maracuja
+    mesma_posicao(matematica, Materias, dezembro, Meses),    % 15. Matematica -> Dezembro
+    mesma_posicao(azul, Mochilas, janeiro, Meses),           % 17. Azul -> Janeiro
+    mesma_posicao(uva, Sucos, prob_de_logica, Jogos),        % 7. Uva -> Prob. de Logica
+    mesma_posicao(joao, Nomes, historia, Materias),          % 2. Joao -> Historia
 
-    % Jogos
-    lista_valores(jogo, LJogos),
-    valores_distintos(LJogos, Jogos),
+    % C. Posicoes Exatas (Exatamente a esquerda)
+    exatamente_a_esquerda(branca, Mochilas, will, Nomes),    % 5. Branca ex. esq. de Will
+    exatamente_a_esquerda(uva, Sucos, portugues, Materias),  % 14. Uva ex. esq. de Portugues
 
-    % 7: Uva -> Problemas de Logica
-    mesma_posicao(uva, Sucos, prob_de_logica, Jogos),
-    % 8: Forca ao lado de 3 ou Mais
-    posicao(jogo_da_forca, Jogos, PForca),
-    posicao(tres_ou_mais, Jogos, PTres),
-    ao_lado(PForca, PTres),
-    % 10: Cubo Vermelho em uma ponta
-    posicao(cubo_vermelho, Jogos, PCubo),
-    ponta(PCubo),
+    % D. Pontas e Extremidades
+    posicao(otavio, Nomes, POtavio), ponta(POtavio),         % 22. Otavio em uma das pontas
+    posicao(cubo_vermelho, Jogos, PCubo), ponta(PCubo),      % 10. Cubo Vermelho em uma ponta
 
-    % Mochilas
-    lista_valores(mochila, LMochilas),
-    valores_distintos(LMochilas, Mochilas),
+    % E. Restrições de Vizinhanca (Ao lado)
+    ao_lado(will, Nomes, prob_de_logica, Jogos),             % 4. Will ao lado de Prob. Logica
+    ao_lado(jogo_da_forca, Jogos, tres_ou_mais, Jogos),      % 8. Forca ao lado de 3 ou Mais
+    ao_lado(jogo_da_forca, Jogos, vermelha, Mochilas),       % 11. Forca ao lado da Vermelha
+    ao_lado(prob_de_logica, Jogos, amarela, Mochilas),       % 16. Prob. Logica ao lado da Amarela
+    ao_lado(setembro, Meses, laranja, Sucos),                % 1. Setembro ao lado de Laranja
+    ao_lado(janeiro, Meses, setembro, Meses),                % 13. Janeiro ao lado de Setembro
+    ao_lado(setembro, Meses, cubo_vermelho, Jogos),          % 18. Setembro ao lado do Cubo Vermelho
 
-    % 11: Forca ao lado da mochila Vermelha
-    posicao(jogo_da_forca, Jogos, PForca2),
-    posicao(vermelha, Mochilas, PVermelha),
-    ao_lado(PForca2, PVermelha),
-    % 16: Problemas de Logica ao lado da mochila Amarela
-    posicao(prob_de_logica, Jogos, PProb),
-    posicao(amarela, Mochilas, PAmarela),
-    ao_lado(PProb, PAmarela),
-    % 9: Uva a direita da mochila Azul
-    posicao(uva, Sucos, PUva2),
-    posicao(azul, Mochilas, PAzul),
-    PUva2 > PAzul,
+    % F. Restrições Relativas (Em algum lugar a esquerda/direita)
+    a_esquerda_de(azul, Mochilas, maio, Meses),              % 3. Azul em algum lugar a esq. de Maio
+    a_direita_de(uva, Sucos, azul, Mochilas).                % 9. Uva em algum lugar a dir. da Azul
 
-    % Nomes
-    lista_valores(nome, LNomes),
-    valores_distintos(LNomes, Nomes),
+% =========================================================================
+% PREDICADOS AUXILIARES DE LISTAS E DOMINIOS
+% =========================================================================
 
-    % 2: Joao -> Historia
-    mesma_posicao(joao, Nomes, historia, Materias),
-    % 4: Will ao lado de Problemas de Logica
-    posicao(will, Nomes, PWill),
-    posicao(prob_de_logica, Jogos, PProb2),
-    ao_lado(PWill, PProb2),
-    % 5: Branca exatamente a esquerda de Will
-    posicao(branca, Mochilas, PBranca),
-    posicao(will, Nomes, PWill2),
-    PWill2 is PBranca + 1,
-    % 22: Otavio em uma ponta
-    posicao(otavio, Nomes, POtavio),
-    ponta(POtavio),
+% Preenche uma lista com valores de um dominio e garante que sejam distintos
+preenche_lista([], _).
+preenche_lista([H|T], Pred) :-
+    call(Pred, H),
+    preenche_lista(T, Pred).
 
-    % Meses
-    lista_valores(mes, LMeses),
-    valores_distintos(LMeses, Meses),
-
-    % 15: Matematica -> Dezembro
-    mesma_posicao(matematica, Materias, dezembro, Meses),
-    % 17: Azul -> Janeiro
-    mesma_posicao(azul, Mochilas, janeiro, Meses),
-    % 3: Azul a esquerda de Maio
-    posicao(azul, Mochilas, PAzul2),
-    posicao(maio, Meses, PMaio),
-    PAzul2 < PMaio,
-    % 1: Setembro ao lado de Laranja
-    posicao(setembro, Meses, PSet),
-    posicao(laranja, Sucos, PLaranja),
-    ao_lado(PSet, PLaranja),
-    % 13: Janeiro ao lado de Setembro
-    posicao(janeiro, Meses, PJan),
-    posicao(setembro, Meses, PSet2),
-    ao_lado(PJan, PSet2),
-    % 18: Setembro ao lado de Cubo Vermelho
-    posicao(setembro, Meses, PSet3),
-    posicao(cubo_vermelho, Jogos, PCubo2),
-    ao_lado(PSet3, PCubo2).
-
-% ---------- Auxiliares para listar valores ----------
-lista_valores(mochila, L) :- findall(X, mochila(X), L).
-lista_valores(nome, L)    :- findall(X, nome(X), L).
-lista_valores(mes, L)     :- findall(X, mes(X), L).
-lista_valores(jogo, L)    :- findall(X, jogo(X), L).
-lista_valores(materia, L) :- findall(X, materia(X), L).
-lista_valores(suco, L)    :- findall(X, suco(X), L).
-
-% ---------- Geracao de listas com valores distintos ----------
-valores_distintos(Valores, Lista) :-
-    permutacao(Valores, Lista),
-    alldifferent(Lista).
-
-% alldifferent sem bibliotecas externas
+% Garante que todos os elementos de uma lista sejam distintos (Conforme tutorial)
 alldifferent([]).
 alldifferent([H|T]) :-
-    \+ membro(H, T),
+    \+ member(H, T),
     alldifferent(T).
 
-membro(X, [X|_]).
-membro(X, [_|T]) :- membro(X, T).
+% =========================================================================
+% PREDICADOS AUXILIARES DE POSICAO E RELACIONAMENTO
+% =========================================================================
 
-% permutacao sem bibliotecas externas
-permutacao([], []).
-permutacao(Valores, [X|Resto]) :-
-    selecionar(X, Valores, ValoresRestantes),
-    permutacao(ValoresRestantes, Resto).
+% Encontra a posicao (1 a 5) de um elemento na lista
+posicao(X, [X|_], 1) :- !.
+posicao(X, [_|T], P) :-
+    posicao(X, T, P1),
+    P is P1 + 1.
 
-selecionar(X, [X|T], T).
-selecionar(X, [H|T], [H|R]) :-
-    selecionar(X, T, R).
+% Verifica se duas posicoes sao vizinhas (diferenca de 1)
+ao_lado(X, ListaX, Y, ListaY) :-
+    posicao(X, ListaX, PX),
+    posicao(Y, ListaY, PY),
+    (PX =:= PY + 1 ; PX =:= PY - 1).
 
-% posicao de um valor em uma lista de 5 posicoes
-posicao(X, Lista, Pos) :-
-    posicao_aux(X, Lista, 1, Pos).
+% Verifica se X esta exatamente a esquerda de Y (X + 1 = Y)
+exatamente_a_esquerda(X, ListaX, Y, ListaY) :-
+    posicao(X, ListaX, PX),
+    posicao(Y, ListaY, PY),
+    PY =:= PX + 1.
 
-posicao_aux(X, [X|_], Pos, Pos) :- !.
-posicao_aux(X, [_|T], Pos0, Pos) :-
-    Pos1 is Pos0 + 1,
-    posicao_aux(X, T, Pos1, Pos).
+% Verifica se X esta em algum lugar a esquerda de Y (X < Y)
+a_esquerda_de(X, ListaX, Y, ListaY) :-
+    posicao(X, ListaX, PX),
+    posicao(Y, ListaY, PY),
+    PX < PY.
 
-% posicoes vizinhas
-ao_lado(P1, P2) :-
-    (   P1 =:= P2 + 1
-    ->  true
-    ;   P1 =:= P2 - 1
-    ).
+% Verifica se X esta em algum lugar a direita de Y (X > Y)
+a_direita_de(X, ListaX, Y, ListaY) :-
+    posicao(X, ListaX, PX),
+    posicao(Y, ListaY, PY),
+    PX > PY.
 
-% posicoes 1 ou 5
-ponta(1).
-ponta(5).
-
-% mesma posicao para dois valores em listas diferentes
+% Verifica se dois elementos estao na mesma posicao em listas diferentes
 mesma_posicao(X, ListaX, Y, ListaY) :-
     posicao(X, ListaX, P),
     posicao(Y, ListaY, P).
 
-% ---------- Impressao ----------
-imprime_lista(Lista) :-
-    imprime_lista(Lista, 1).
+% Verifica se a posicao e uma ponta (1 ou 5)
+ponta(1).
+ponta(5).
 
-imprime_lista([], _) :-
-    write('FIM do imprime_lista'), nl.
+% =========================================================================
+% IMPRESSAO DA SOLUCAO
+% =========================================================================
+imprime_lista([]) :- 
+    nl, write('----------------------------------------'), nl,
+    write('FIM da impressao da lista'), nl.
 
-imprime_lista([menino(Mochila, Nome, Mes, Jogo, Materia, Suco)|T], I) :-
-    nl,
-    write('Menino #'), write(I), nl,
+imprime_lista([menino(Mochila, Nome, Mes, Jogo, Materia, Suco)|T]) :-
     write('Mochila : '), write(Mochila), nl,
     write('Nome    : '), write(Nome), nl,
     write('Mes     : '), write(Mes), nl,
     write('Jogo    : '), write(Jogo), nl,
     write('Materia : '), write(Materia), nl,
     write('Suco    : '), write(Suco), nl,
-    I1 is I + 1,
-    imprime_lista(T, I1).
+    write('----------------------------------------'), nl,
+    imprime_lista(T).
